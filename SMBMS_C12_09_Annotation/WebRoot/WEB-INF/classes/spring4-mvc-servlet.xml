@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/mvc
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+	<context:component-scan base-package="cn.smbms.controller" />
+
+    <!-- 开启Springmvc注解驱动 -->
+	<mvc:annotation-driven>
+		<!--begin *********2017-6-22********* -->
+		<!--解决JSON数据传递的日期格式问题 -->
+		<mvc:message-converters>
+			<bean class="org.springframework.http.converter.StringHttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>application/json;charset=UTF-8</value>
+					</list>
+				</property>
+			</bean>
+
+			<!--配置FastJson的消息转换器 -->
+			<bean
+				class="com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>text/html;charset=UTF-8</value>
+						<value>application/json</value>
+					</list>
+				</property>
+				<property name="features">
+					<list>
+						<!-- Date的日期转换器 -->
+						<value>WriteDateUseDateFormat</value>
+					</list>
+				</property>
+			</bean>
+		</mvc:message-converters>
+		<!--end *********2017-6-22********* -->
+	</mvc:annotation-driven>
+
+	<mvc:resources location="/statics/" mapping="/statics/**"></mvc:resources>
+
+
+	<!-- 配置国际化 -->
+	<bean id="messageSource"
+		class="org.springframework.context.support.ResourceBundleMessageSource">
+		<!-- 国际化资源文件基名 -->
+		<property name="basename" value="messages" />
+		<!-- 如果国际化资源文件不存在 ，使用code码替代 -->
+		<property name="useCodeAsDefaultMessage" value="true" />
+	</bean>
+
+
+
+
+
+
+	<!-- start  ***********spring4的写法 ******************* -->
+
+	<bean id="contentManager"
+		class="org.springframework.web.accept.ContentNegotiationManagerFactoryBean">
+		<property name="favorPathExtension" value="true" />
+		<property name="favorParameter" value="true" />
+		<property name="ignoreAcceptHeader" value="true"></property>
+		<property name="defaultContentType" value="text/html" />
+		<property name="mediaTypes">
+			<map>
+				<!-- 告诉视图解析器，返回的类型为json格式 -->
+				<entry key="json" value="application/json" />
+				<entry key="xml" value="application/xml" />
+				<entry key="htm" value="text/htm" />
+				<entry key="file" value="application/octet-stream" />
+				<entry key="image" value="image/*" />
+				<entry key="xls" value="application/vnd.ms-excel" />
+			</map>
+		</property>
+	</bean>
+
+	<!-- 配置多视图解析器：允许同样的内容数据呈现不同的view -->
+	<bean id="viewResolver"
+		class="org.springframework.web.servlet.view.ContentNegotiatingViewResolver">
+		<property name="contentNegotiationManager" ref="contentManager" />
+		<property name="viewResolvers"><!-- 针对freemarker的视图配置 -->
+			<list>
+				<bean
+					class="org.springframework.web.servlet.view.freemarker.FreeMarkerViewResolver">
+					<property name="viewClass"
+						value="org.springframework.web.servlet.view.freemarker.FreeMarkerView" />
+					<property name="viewNames" value=".ftl" />
+					<property name="contentType" value="text/html; charset=utf-8" />
+					<property name="cache" value="true" />
+					<property name="prefix" value="" />
+					<property name="suffix" value="" />
+					<property name="order" value="2" />
+				</bean>
+				<bean
+					class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+					<property name="prefix" value="/WEB-INF/jsp/"></property><!-- 配置页面路径 -->
+					<property name="suffix" value=".jsp"></property><!-- 文件以value值结尾 -->
+				</bean>
+			</list>
+		</property>
+	</bean>
+	<!-- //end  ***********spring4的写法 ******************* -->
+
+	<!-- 配置interceptors -->
+	<mvc:interceptors>
+		<mvc:interceptor>
+			<mvc:mapping path="/sys/**" />
+			<bean class="cn.smbms.interceptor.SysInterceptor" />
+		</mvc:interceptor>
+	</mvc:interceptors>
+
+
+	<!-- 配置MultipartResolver，用于上传文件，使用spring的CommonsMultipartResolver （早期spring版本使用）-->
+	<!-- 
+	<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver"> 
+		<property name="maxUploadSize" value="5000000"/> 
+		<property name="defaultEncoding" value="UTF-8"/> 
+	</bean> 
+    -->
+
+	<!-- 配置MultipartResolver，用于上传文件，使用spring的StandardServletMultipartResolver （spring3以后的版本使用）-->
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.support.StandardServletMultipartResolver" />
+
+	<!--spring4  避免IE执行AJAX时，返回JSON出现下载文件 -->
+	<bean id="mappingJacksonHttpMessageConverter"
+		class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+		<property name="supportedMediaTypes">
+			<list>
+				<value>text/html;charset=UTF-8</value>
+			</list>
+		</property>
+	</bean>
+</beans>   

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.smbms.dao.provider.ProviderMapper">
+	<!-- 1:N  -->
+<!-- 查询供应商的所有订单信息 -->
+<select id="getBillListofProvider" resultMap="providerBillResult">
+  select p.*,b.id as b_id,b.billCode 
+  from smbms_provider p 
+    left join smbms_bill b
+      on p.id=b.providerId 
+</select>
+
+<!-- 获取指定供应商的订单列表(provider表-bill表：1对多关系) collection start-->
+	<resultMap type="Provider" id="providerBillResult">
+		<id property="id" column="id"/>
+		<result property="proCode" column="proCode"/>
+		<result property="proName" column="proName"/>
+		<result property="proContact" column="proContact"/>
+		<result property="proPhone" column="proPhone"/>
+		<collection property="billList" ofType="Bill" resultMap="billResult"/>
+	</resultMap>
+	
+	<resultMap type="Bill" id="billResult">
+		<id property="id" column="b_id"/>
+		<result property="billCode" column="billCode"/>
+		<result property="productName" column="productName"/>
+		<result property="totalPrice" column="totalPrice"/>
+		<result property="isPayment" column="isPayment"/>
+	</resultMap>
+	
+</mapper>

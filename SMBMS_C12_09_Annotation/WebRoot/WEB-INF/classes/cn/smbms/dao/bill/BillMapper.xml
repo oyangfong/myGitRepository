@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.smbms.dao.bill.BillMapper">
+  <select id="getBillByProviderId_foreach_array" resultType="Bill">
+    select * from smbms_bill 
+    where providerId in
+    <foreach collection="array" item="providerIds" open="(" separator="," close=")">
+      #{providerIds}
+    </foreach>
+  </select>
+  
+  
+	<select id="getBillByProviderId_foreach_list" resultType="Bill">
+    select * from smbms_bill 
+    where providerId in
+    <foreach collection="list" item="aa" open="(" separator="," close=")">
+      #{aa}
+    </foreach>
+  </select>
+</mapper>

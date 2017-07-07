@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:cache="http://www.springframework.org/schema/cache"
+	xsi:schemaLocation="   
+            http://www.springframework.org/schema/beans 
+            http://www.springframework.org/schema/beans/spring-beans.xsd   
+            http://www.springframework.org/schema/aop 
+            http://www.springframework.org/schema/aop/spring-aop.xsd   
+            http://www.springframework.org/schema/tx 
+            http://www.springframework.org/schema/tx/spring-tx.xsd 
+            http://www.springframework.org/schema/context 
+            http://www.springframework.org/schema/context/spring-context.xsd
+            
+            http://www.springframework.org/schema/cache
+            http://www.springframework.org/schema/cache/spring-cache.xsd">
+
+	<!-- 扫描dao,service -->
+	<!-- <context:component-scan base-package="cn.smbms.util"/> -->
+	<context:component-scan base-package="cn.smbms.service" />
+    <context:component-scan base-package="cn.smbms.dao" />
+
+
+	<!-- start Mybatis配置 -->
+	<!-- 读取数据库配置文件 -->
+	<context:property-placeholder location="classpath:database.properties" />
+
+	<!-- JNDI获取数据源(使用dbcp连接池) -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close" scope="singleton">
+		<property name="driverClassName" value="${driver}" />
+		<property name="url" value="${url}" />
+		<property name="username" value="${user}" />
+		<property name="password" value="${password}" />
+		<property name="initialSize" value="${initialSize}" /><!-- 初始化连接池创建的连接个数 -->
+		<property name="maxActive" value="${maxActive}" /><!-- 连接池中同时连接数 -->
+		<property name="maxIdle" value="${maxIdle}" /><!-- 连接池中可允许的最大的空闲连接数 
+			不能设置的太小 打开时间快于关闭连接的时间 -->
+		<property name="minIdle" value="${minIdle}" /><!-- 连接池中可允许的最小的空闲连接数 
+			约近于maxIdle的值 -->
+		<property name="maxWait" value="${maxWait}" /><!-- 连接池中最大的等待时间 
+			-1表示无限等待 -->
+		<property name="removeAbandonedTimeout" value="${removeAbandonedTimeout}" /><!-- 
+			回收时间设置 -->
+		<property name="removeAbandoned" value="${removeAbandoned}" /><!-- 
+			无用连接回收机制 -->
+		<!-- sql 心跳包配置 -->
+		<!-- mysql 8小时无连接，会断开所有连接 -->
+		<property name="testWhileIdle" value="true" /><!-- 定义开启Evict循环校验 
+			轮循方式 -->
+		<property name="testOnBorrow" value="false" /><!-- 对拿到的连接是否校验 -->
+		<property name="testOnReturn" value="false" /><!-- 对返回的连接是否校验 -->
+		<property name="validationQuery" value="select 1" /><!-- 定义校验的sql语句，语句复杂会影响性能 -->
+		<property name="timeBetweenEvictionRunsMillis" value="60000" /><!-- 
+			设置开启Evict循环校验的时间 ms 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒-->
+		<property name="numTestsPerEvictionRun" value="${maxActive}" /><!-- 
+			每次校验所有的连接数 -->
+	</bean>
+
+	<!-- 事务管理 -->
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<!-- 开启动态代理 -->
+	<aop:aspectj-autoproxy />
+
+	<!-- 配置mybitas SqlSessionFactoryBean -->
+	<!-- R-1. mybatis配置 -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation" value="classpath:mybatis-config.xml" />
+	</bean>
+
+	<!-- AOP 事务处理 开始 -->
+	<aop:aspectj-autoproxy />
+	<aop:config proxy-target-class="true">
+		<aop:pointcut expression="execution(* *cn.smbms.service..*(..))"
+			id="transService" />
+		<aop:advisor pointcut-ref="transService" advice-ref="txAdvice" />
+	</aop:config>
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="smbms*" propagation="REQUIRED"
+				rollback-for="Exception" />
+		</tx:attributes>
+	</tx:advice>
+	<!-- AOP 事务处理 结束 -->
+
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="cn.smbms.dao" />
+	</bean>
+	<!-- //end Mybatis配置 -->
+
+
+
+
+
+
+	<!-- start  配置redis缓存 -->
+	<!-- 配置redis.properties -->
+	<bean id="propertyConfigurerRedis"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="order" value="1" />
+		<property name="ignoreUnresolvablePlaceholders" value="true" />
+		<property name="locations">
+			<list>
+				<value>classpath:redis.properties</value>
+			</list>
+		</property>
+	</bean>
+
+
+	<!-- 配置redis 单机版 -->
+	<!-- 使用Spring管理Redis连接池 -->
+
+	<!-- 配置redis连接池 JedisPoolConfig -->
+	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+		<property name="maxIdle" value="${redis.pool.maxIdle}" />
+		<property name="maxWaitMillis" value="${redis.pool.maxWaitMillis}" />
+		<!-- 在borrow一个jedis实例时，是否提前进行validate操作；如果为true，则得到的jedis实例均是可用的 -->
+		<property name="testOnBorrow" value="${redis.pool.testOnBorrow}" /> 
+	</bean>
+
+	<!-- Spring-redis连接池管理工厂 -->
+	<bean id="jedisConnectionFactory"
+		class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory">
+		<property name="usePool" value="true"></property>
+		<property name="hostName" value="${redis.host}" />
+		<property name="port" value="${redis.port}" />
+		<property name="password" value="${redis.password}" />
+		<!-- 超时时间 -->
+		<property name="timeout" value="${redis.timeout}" />
+		<property name="database" value="${redis.default.db}"/>
+		<!-- 构造注入连接池配置 -->
+		<constructor-arg index="0" ref="jedisPoolConfig" />
+	</bean>
+
+	<!-- redis模板类，提供了对缓存的增删改查 -->
+	<bean id="redisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate">
+		<property name="connectionFactory" ref="jedisConnectionFactory" />
+		<property name="keySerializer">
+			<bean
+				class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+		</property>
+		<property name="valueSerializer">
+			<bean
+				class="org.springframework.data.redis.serializer.JdkSerializationRedisSerializer" />
+		</property>
+	</bean>
+
+	<!-- StrRedisTemplate -->
+	<bean id="strRedisTemplate" class="org.springframework.data.redis.core.StringRedisTemplate">
+		<property name="connectionFactory" ref="jedisConnectionFactory" />
+		<property name="keySerializer">
+			<bean
+				class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+		</property>
+		<property name="valueSerializer">
+			<bean
+				class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+		</property>
+		<property name="hashKeySerializer">
+			<bean
+				class="org.springframework.data.redis.serializer.StringRedisSerializer" />
+		</property>
+	</bean>
+
+
+	<!-- Redis缓存管理对象 -->
+	<bean id="cacheManager" class="org.springframework.data.redis.cache.RedisCacheManager">
+		<constructor-arg index="0" ref="redisTemplate" />
+		<!-- <property name="caches">
+			<set>
+				<bean class="cn.smbms.util.RedisCache">
+					<property name="jedisConnectionFactory" ref="jedisConnectionFactory" />
+					<property name="name" value="User" />User名称要在类或方法的注解中使用
+				</bean>
+			</set>
+		</property>  -->
+	</bean>
+<!-- 使用中间类解决RedisCache.jedisConnectionFactory的静态注入，从而使MyBatis实现第三方缓存 -->
+<bean id="redisCacheTransfer" class="cn.smbms.util.RedisCacheTransfer">
+    <property name="jedisConnectionFactory" ref="jedisConnectionFactory"/>
+</bean>
+
+	<!-- 启用注解配置 -->
+	<context:annotation-config />
+
+	
+	<!-- 开启Spring缓存 -->
+	<cache:annotation-driven  cache-manager="cacheManager"/>
+	<!-- //end  配置redis缓存 -->
+</beans>

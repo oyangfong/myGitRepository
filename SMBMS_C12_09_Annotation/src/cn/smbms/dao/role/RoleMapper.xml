@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.smbms.dao.role.RoleMapper">
+	<select id="getRoleList" resultType="Role">
+	  select * from smbms_role
+	</select>
+	
+	<!-- 根据角色id查询该角色分配给了哪些用户 -->
+	<select id="getUserListByRoleId" parameterType="int" resultMap="roleUserMap">
+	  select r.*,u.id as u_id,u.username 
+	  from smbms_role r,smbms_user u
+	  where r.id=u.userRole and r.id=#{id}
+	</select>
+	
+	<resultMap type="Role" id="roleUserMap">
+	  <id property="id" column="id"/>
+	  <result property="roleCode" column="roleCode"/>
+	  <result property="roleName" column="roleName"/>
+	  <!-- one-to-many -->
+	  <collection property="userList" ofType="User" resultMap="userResultMap"/>
+	</resultMap>
+	
+	<resultMap type="User" id="userResultMap">
+	  <id property="id" column="u_id"/>
+	  <result property="userName" column="userName"/>
+	</resultMap>
+</mapper>

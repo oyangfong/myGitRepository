@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.smbms.dao.user.UserMapper">
+    <!-- R-4. 开启MyBatis对二级缓存的支持 -->
+  <cache eviction="LRU" type="cn.smbms.util.RedisCache" />
+	
+	<select id="selectAll" resultType="User">
+		select * from smbms_user
+	</select>
+    
+    <select id="getUserListByPage" resultType="User">
+		select * from smbms_user
+		order by creationDate desc 
+		limit #{from},#{pageSize}
+	</select>
+    
+    <!-- 获取总记录数 -->
+    <select id="getTotalCount" resultType="int">
+      select count(1) from smbms_user
+    </select>
+    
+	<!-- 获取用户列表 -->
+	<select id="getUserList" resultMap="userResultMap">
+		select u.*,r.roleName from
+		smbms_user u,smbms_role r
+		where u.userRole=r.id
+	</select>
+   <!-- 检查登录账号UserCode是否已被占用-->
+   <select id="checkUserExist" resultType="int">
+     select count(1) from smbms_user
+     where usercode=#{userCode}
+   </select>
+   
+    <!-- 用户登录 -->
+    <select id="getUserByUserCode" resultType="User">
+       select * from smbms_user
+       where usercode=#{userCode} and userpassword=#{userPassword}
+    </select>
+
+	<!-- 定义resultMap 当数据表中的字段与类中的属性名称不一致时使用 -->
+	<!-- 自动Mapper级别默认是 partial -->
+	<resultMap type="User" id="userResultMap">
+		<result property="id" column="id" />
+		<result property="userCode" column="userCode" />
+		<result property="userName" column="userName" />
+		<result property="birthday" column="birthday" />
+		<result property="userRoleName" column="roleName" />
+	</resultMap>
+
+	<select id="selectById" resultType="User" parameterType="int">
+		select u.*,r.roleName as userRoleName
+		from smbms_user u 
+		  inner join smbms_role r on r.id=u.userRole 
+		where u.id=#{id}
+	</select>
+
+	<!-- 按姓名查找 -->
+	<select id="selectByUsername" parameterType="String" resultType="User">
+		select * from smbms_user where username like
+		concat('%',#{userName},'%')
+	</select>
+
+	<select id="selectByUsername2" parameterType="User" resultType="User">
+		select * from smbms_user where username like
+		concat('%',#{userName},'%') and userRole=#{userRole}
+	</select>
+
+	<!-- 参数封装至map中入参 -->
+	<select id="selectByMap" parameterType="Map" resultType="User">
+		select *
+		from smbms_user where username like concat('%',#{userName},'%') and
+		userRole=#{userRole}
+	</select>
+
+	<!-- 不指定参数类型 以注解方式指定参数名称 -->
+	<select id="selectByParam" resultType="User">
+		select * from smbms_user
+		where username like concat('%',#{userName},'%') and
+		userRole=#{userRole}
+	</select>
+	
+	<select id="selectByParam2" resultType="User">
+		select * from smbms_user
+		<where>
+			<if test="userName!=null">
+				and username like concat('%',#{userName},'%')
+			</if>
+			<if test="userRole!=null">
+				and userRole=#{userRole}
+			</if>
+		</where>
+	</select>
+
+
+	<!-- insert -->
+	<!-- useGeneratedKeys设置为"true"表明要MyBatis获取由数据库自动生成的主键;
+	     keyProperty="id"指定把获取到的主键值注入到User的id属性 -->
+	<insert id="add" parameterType="User" useGeneratedKeys="true"
+		keyProperty="id">
+		insert into smbms_user(userCode,userName,userPassword,userRole,gender,
+		                        birthday,phone,address,creationDate,createdBy,idPicPath,workIdPicPath)
+		values(#{userCode},#{userName},#{userPassword},#{userRole},#{gender},
+		        #{birthday},#{phone},#{address},#{creationDate},#{createdBy},#{idPicPath},#{workIdPicPath})
+	</insert>
+
+	<update id="update" parameterType="User">
+		update smbms_user set
+		userName=#{userName} where id=#{id}
+	</update>
+
+	<delete id="delete" parameterType="int">
+		delete from smbms_user where
+		id=#{id}
+	</delete>
+
+	<!-- ch03 -->
+
+	<select id="GetUserbyConditionMap_foreach_map" resultMap="userMapByRole">
+		select * from smbms_user
+		where gender=#{gender}
+		and userRole in
+		<foreach collection="roleIds" item="roleMap" open="(" separator="," close=")">
+		  #{roleMap}
+		</foreach>
+
+	</select>
+
+	<resultMap type="User" id="userMapByRole">
+		<id property="id" column="id" />
+		<result property="userCode" column="userCode" />
+		<result property="userName" column="userName" />
+	</resultMap>
+
+	<!-- 根据角色获取用户信息 -->
+	<select id="getUserListByRoleId" parameterType="int" resultMap="userRoleResult">
+		select u.*,r.id as r_id,r.roleCode,r.roleName
+		from smbms_user
+		u,smbms_role r
+		where u.userRole=r.id and u.userRole=#{userRole}
+	</select>
+	<resultMap type="User" id="userRoleResult">
+		<id property="id" column="id" />
+		<result property="userCode" column="userCode" />
+		<result property="userName" column="userName" />
+		<result property="userRole" column="userRole" />
+		<association property="role" javaType="Role">
+			<id property="id" column="r_id" />
+			<result property="roleCode" column="roleCode" />
+			<result property="roleName" column="roleName" />
+		</association>
+	</resultMap>
+
+	<!-- trim使用 -->
+
+	<select id="selectByParam3" resultType="User">
+		select * from smbms_user
+		<trim prefix="where" prefixOverrides="and|or">
+			<if test="userName!=null">
+				and username like concat('%',#{userName},'%')
+			</if>
+			<if test="userRole!=null">
+				and userRole=#{userRole}
+			</if>
+		</trim>
+	</select>
+
+	<!-- if+set -->
+	<update id="update2" parameterType="User">
+		update smbms_user
+		<trim prefix="set" suffixOverrides="," suffix="where id=#{id}">
+			<if test="userCode!=null">userCode=#{userCode},</if>
+			<if test="userName!=null">userName=#{userName},</if>
+			<if test="userPassword!=null">userPassword=#{userPassword},</if>
+			<if test="gender!=null">gender=#{gender},</if>
+			<if test="birthday!=null">birthday=#{birthday},</if>
+			<if test="phone!=null">phone=#{phone},</if>
+			<if test="address!=null">address=#{address},</if>
+			<if test="userRole!=null">userRole=#{userRole},</if>
+			<if test="modifyBy!=null">modifyBy=#{modifyBy},</if>
+			<if test="modifyDate!=null">modifyDate=#{modifyDate},</if>
+		</trim>
+	</update>
+</mapper>
